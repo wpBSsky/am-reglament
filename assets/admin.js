@@ -1579,8 +1579,27 @@
     document.body.insertAdjacentHTML('beforeend',
       '<div class="gate"><div class="gate__card"><h1 class="gate__title">Не открылось</h1>'
       + '<p style="font-size:.9rem">' + R.esc(msg) + '</p>'
-      + '<p class="field__hint">Запустите сервер: <code>python server.py</code> — и откройте страницу с его адреса.</p>'
+      + '<p class="field__hint">' + (S.store && S.store.mode === 'github'
+        ? 'Откройте адрес сайта в браузере и обновите страницу.'
+        : 'Запустите сервер: <code>python server.py</code> — и откройте страницу с его адреса.')
+      + '</p>'
       + '</div></div>');
+  }
+
+  /* подсказка под паролем: на сайте нет никакого server.py — не пугаем посетителей */
+  function paintGateNote() {
+    var el = $('gateNote');
+    if (!el || !S.store) return;
+    if (S.store.mode === 'local') {
+      el.hidden = false;
+      el.innerHTML = 'Пароль администратора задаётся на сервере: '
+        + '<code>python server.py --set-password</code>.';
+    } else if (S.store.mode === 'github') {
+      el.hidden = false;
+      el.textContent = 'Пароль выдаёт организатор турнира. Если вы его не получали — эта страница не для вас.';
+    } else {
+      el.hidden = true;
+    }
   }
 
   /* честно показываем, куда уйдёт публикация: в этот файл или в репозиторий */
@@ -1607,6 +1626,7 @@
   store.then(function (s) {
     S.store = s;
     paintPlace();
+    paintGateNote();
     return s.load();
   }).then(function (doc) {
     S.published = R.normalize(clone(doc));
