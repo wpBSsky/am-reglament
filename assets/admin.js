@@ -288,6 +288,7 @@
     Array.prototype.forEach.call(adoc.querySelectorAll('.ed'), function (el) {
       if (!el.textContent.trim()) el.setAttribute('data-ph', 'пусто');
     });
+    paintDocStyle();
     setTimeout(function () { S.lock = false; }, 0);
     updateStatus();
   }
@@ -1121,6 +1122,7 @@
         + opt('meta', 'Шапка страницы', 'название, лид, косты, арт')
       + opt('images', 'Картинки', 'что загружено и удалить лишнее')
       + opt('history', 'История версий', 'посмотреть и откатить')
+      + opt('pdf', 'Скачать PDF', 'печать браузера → «Сохранить как PDF»')
       + opt('help', 'Подсказки', 'как править и публиковать')
       + opt('logout', 'Выйти', 'закрыть редактор на этом устройстве')
       + '<p class="field__hint" style="margin-top:14px">Сборка ' + R.esc(BUILD) + ' — '
@@ -1130,6 +1132,12 @@
           else if (cmd === 'meta') { closeSheet(); openMeta(); }
         else if (cmd === 'images') { closeSheet(); manageImages(); }
         else if (cmd === 'history') { closeSheet(); openHistory(); }
+        else if (cmd === 'pdf') {
+          closeSheet();
+          flushFocused();
+          window.open('index.html?preview=1&print=1', '_blank', 'noopener');
+          toast('Открыл печать черновика — выберите «Сохранить как PDF»');
+        }
         else if (cmd === 'help') { closeSheet(); openHelp(); }
         else if (cmd === 'logout') { closeSheet(); logout(); }
       });
@@ -1163,6 +1171,7 @@
 
   function logout() {
     sessionStorage.removeItem(PASS_KEY);
+    stopPresence();
     S.authed = false;
     app.hidden = true;
     closeSheet();
@@ -1170,6 +1179,80 @@
   }
 
   /* ── шапка страницы ──────────────────────────────────────────────────── */
+  /* ── кто ещё в редакторе ─────────────────────────────────────────────────
+     Локальный сервер знает это точно (api/presence). На статическом хостинге
+     узнать, кто держит вкладку открытой, неоткуда — там следим за опубликованным
+     документом и честно говорим, если его поменяли после нашего входа. */
+  var PRES = {
+    id: 'e' + Math.random().toString(36).slice(2) + Date.now().toString(36),
+    timer: null,
+    stamp: null,
+    busy: false
+  };
+
+  function paintPresence(text, tone) {
+    var el = $('presence');
+    if (!el) return;
+    if (!text) { el.hidden = true; el.textContent = ''; return; }
+    el.hidden = false;
+    el.textContent = text;
+    el.setAttribute('data-tone', tone || '');
+  }
+
+  function stampOf(doc) {
+    try { return (doc.meta && doc.meta.updated || '') + '|' + JSON.stringify(doc).length; }
+    catch (e) { return ''; }
+  }
+
+  function presenceBeat() {
+    if (!S.store || PRES.busy) return;
+    PRES.busy = true;
+    if (S.store.mode === 'local') {
+      fetch('api/presence', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: PRES.id })
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        PRES.busy = false;
+        if (!d) return;
+        if (d.others > 0) {
+          paintPresence('● ещё ' + d.others + ' — сейчас правят', 'warn');
+        } else {
+          paintPresence('● вы один в редакторе', 'ok');
+        }
+      }).catch(function () { PRES.busy = false; paintPresence('', ''); });
+      return;
+    }
+    /* статический хостинг */
+    fetch('content.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (doc) {
+        PRES.busy = false;
+        if (!doc) return;
+        var now = stampOf(doc);
+        if (PRES.stamp === null) {
+          PRES.stamp = now;
+          paintPresence('● вы один в редакторе', 'ok');
+          return;
+        }
+        if (now !== PRES.stamp && now !== stampOf(S.doc)) {
+          PRES.stamp = now;
+          paintPresence('● опубликованное изменили (' + clock(new Date()) + ') — кто-то ещё работает', 'warn');
+        }
+      }).catch(function () { PRES.busy = false; });
+  }
+
+  function startPresence() {
+    stopPresence();
+    presenceBeat();
+    PRES.timer = setInterval(presenceBeat, 20000);
+  }
+
+  function stopPresence() {
+    if (PRES.timer) clearInterval(PRES.timer);
+    PRES.timer = null;
+    paintPresence('', '');
+  }
+
   /* версия сборки: видно сразу, старая страница в браузере или новая */
   var BUILD = (function () {
     try {
@@ -1182,6 +1265,8 @@
   /* сезон, формат, косты и редакция живут только в строках под названием —
      иначе одни и те же значения дублируются в двух местах */
   var META_FIELDS = [
+    ['brand', 'Название сайта (шапка)', 0],
+    ['brandSub', 'Подпись рядом с названием', 0],
     ['kicker', 'Надзаголовок', 0],
     ['title', 'Название турнира', 0],
     ['lead', 'Лид под названием', 1],
@@ -1257,6 +1342,37 @@
     ].filter(function (p) { return p.v; });
   }
 
+  /* оформление: шрифт и цвет текста документа */
+  var DOC_FONTS = [['antiqua', 'Антиква'], ['grotesk', 'Гротеск'], ['mono', 'Моно']];
+  var DOC_COLORS = ['#F3F1ED', '#E6D9C0', '#D9B26A', '#C8D2DC', '#E9A6A6'];
+
+  function styleBlock(m) {
+    var st = m.style || {};
+    var font = st.font || 'antiqua';
+    var color = (st.color || '#F3F1ED').toLowerCase();
+    return '<p class="micro" style="margin:20px 0 8px">Оформление документа</p>'
+      + '<div class="chips">' + DOC_FONTS.map(function (f) {
+        return '<button class="chip' + (f[0] === font ? ' is-on' : '') + '" type="button"'
+          + ' data-cmd="font:' + f[0] + '">' + f[1] + '</button>';
+      }).join('') + '</div>'
+      + '<div class="swatches">' + DOC_COLORS.map(function (c) {
+        return '<button class="sw' + (c.toLowerCase() === color ? ' is-on' : '') + '" type="button"'
+          + ' style="background:' + c + '" data-cmd="color:' + c + '"'
+          + ' aria-label="цвет ' + c + '"></button>';
+      }).join('')
+      + '<input class="sw sw--pick" type="color" id="docColor" value="' + R.esc(color) + '"'
+      + ' aria-label="свой цвет текста"></div>'
+      + '<p class="field__hint">К тексту регламента. Служебная графика (линии, плашки) не меняется.</p>';
+  }
+
+  function paintDocStyle() {
+    var st = (S.doc.meta && S.doc.meta.style) || {};
+    if (!adoc) return;
+    adoc.setAttribute('data-font', st.font || 'antiqua');
+    if (st.color) adoc.style.setProperty('--doc-color', st.color);
+    else adoc.style.removeProperty('--doc-color');
+  }
+
   function openMeta() {
     var m = S.doc.meta || (S.doc.meta = {});
     var html = '<p class="sheet__title">Шапка страницы</p>'
@@ -1269,6 +1385,7 @@
           + '</label>';
       }).join('')
       + artBlock(m)
+      + styleBlock(m)
       + heroBlock(m)
       + '<p class="field__hint">В текстах работает <b>**жирный**</b>, <i>*курсив*</i> и <b>[текст](ссылка)</b>. '
       + 'Обновление даты ставится автоматически при публикации.</p>'
@@ -1285,6 +1402,22 @@
       if (cmd === 'close') { closeSheet(); return; }
       if (cmd === 'export') return exportJson();
       if (cmd === 'import') return importJson();
+      if (cmd && cmd.indexOf('font:') === 0) {
+        snap();
+        S.doc.meta = S.doc.meta || {};
+        S.doc.meta.style = S.doc.meta.style || {};
+        S.doc.meta.style.font = cmd.slice(5);
+        touch(); renderAll(); openMeta();
+        return;
+      }
+      if (cmd && cmd.indexOf('color:') === 0) {
+        snap();
+        S.doc.meta = S.doc.meta || {};
+        S.doc.meta.style = S.doc.meta.style || {};
+        S.doc.meta.style.color = cmd.slice(6);
+        touch(); renderAll(); openMeta();
+        return;
+      }
       if (cmd === 'art-pick') {
         pickImage(function (url, w, h) {
           if (w && w < SMALL_ART_W) {
@@ -1375,6 +1508,16 @@
       if (cmd === 'logout') { closeSheet(); logout(); }
     });
 
+    var picker = sheetCard.querySelector('#docColor');
+    if (picker) {
+      picker.addEventListener('input', function () {
+        S.doc.meta = S.doc.meta || {};
+        S.doc.meta.style = S.doc.meta.style || {};
+        S.doc.meta.style.color = picker.value;
+        touch();
+        paintDocStyle();
+      });
+    }
     sheetCard.querySelectorAll('[data-meta]').forEach(function (input) {
       input.addEventListener('input', function () {
         if (!metaSnapped) { snap(); metaSnapped = true; }
@@ -1575,6 +1718,8 @@
   function startEditing() {
     paintDraftBadge();
     app.hidden = false;
+    paintDocStyle();
+    startPresence();
     if (!bound) {
       bound = true;
       $('btnPublish').addEventListener('click', function () { publish(false); });

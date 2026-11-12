@@ -20,6 +20,7 @@ API:
   GET  /api/history   — список версий страницы (X-AM-Pass)
   GET  /api/history/<файл>    — содержимое версии (X-AM-Pass)
   POST /api/restore   — {"name": "..."} вернуть версию в публикацию (X-AM-Pass)
+POST /api/presence  — {"id": "..."} «я ещё в редакторе» → кто там ещё (без пароля, только счётчик)
 
 Каждое сохранение кладёт предыдущую версию в history/ (последние 40).
 Картинки лежат в assets/uploads/ — они часть сайта, их видно на странице.
@@ -33,6 +34,7 @@ import os
 import secrets
 import socket
 import sys
+import threading
 import time
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -69,6 +71,11 @@ AVIF = b"avif"
 HEIC = b"heic"
 
 FAILS = {}  # ip -> [timestamp, ...]
+
+# присутствие: кто сейчас в редакторе (метка -> последний отклик)
+PRESENCE = {}
+PRESENCE_LOCK = threading.Lock()
+PRESENCE_TTL = 45          # секунд без отклика — считаем, что человек ушёл
 
 
 # ── пароль ───────────────────────────────────────────────────────────────────
@@ -402,6 +409,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self.api_upload()
         if path == "/api/restore":
             return self.api_restore()
+        if path == "/api/presence":
+            return self.api_presence()
         return self.fail(404, "неизвестный метод API")
 
     def do_DELETE(self):
@@ -424,6 +433,33 @@ class Handler(SimpleHTTPRequestHandler):
         except OSError as e:
             return self.fail(500, "не смог удалить: %s" % e)
         return self.send_json({"ok": True})
+
+    # ── POST /api/presence ───────────────────────────────────────────────────
+    def api_presence(self):
+        """Кто сейчас держит редактор открытым. Пароль не нужен: наружу уходят
+        только случайные метки и время, без содержимого документа."""
+        body = self.read_body()
+        if body is None:
+            return
+        try:
+            payload = json.loads(body.decode("utf-8") or "{}")
+        except (ValueError, UnicodeDecodeError):
+            payload = {}
+        client_id = str(payload.get("id") or "")[:64]
+        now = time.time()
+        with PRESENCE_LOCK:
+            if client_id:
+                PRESENCE[client_id] = now
+            for key, stamp in list(PRESENCE.items()):
+                if now - stamp > PRESENCE_TTL:
+                    del PRESENCE[key]
+            peers = sorted(PRESENCE.items(), key=lambda kv: kv[1])
+        return self.send_json({
+            "ok": True,
+            "count": len(peers),
+            "others": len([1 for k, _ in peers if k != client_id]),
+            "since": int(now - (peers[0][1] if peers else now)),
+        })
 
     def authorized(self):
         return check_pw(self.headers.get("X-AM-Pass", ""), load_config())

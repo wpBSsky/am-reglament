@@ -14,7 +14,9 @@
   var sheet = document.getElementById('tocsheet');
   var sheetList = document.getElementById('tocsheetList');
   var DRAFT_KEY = 'am.draft.v1';
-  var isPreview = new URLSearchParams(location.search).has('preview');
+  var params = new URLSearchParams(location.search);
+  var isPreview = params.has('preview');
+  var wantPrint = params.has('print');
   var sectionEls = [];
 
   function fmtDate(iso) {
@@ -93,7 +95,7 @@
     return '<footer class="site-foot"><div class="site-foot__in">'
       + '<div>'
       + (meta.footnote ? '<p class="site-foot__note">' + R.inline(meta.footnote, false) + '</p>' : '')
-      + '<p class="micro">' + R.esc(meta.title || 'Annihilation Masters')
+      + '<p class="micro">' + R.esc(brandOf(meta))
       + (meta.edition ? ' · редакция ' + R.esc(meta.edition) : '')
       + (meta.updated ? ' · обновлено ' + R.esc(fmtDate(meta.updated)) : '')
       + '</p>'
@@ -104,11 +106,34 @@
       + '</div></div></footer>';
   }
 
+  function brandOf(meta) {
+    return (meta.brand || '').trim() || 'Annihilation Masters';
+  }
+
+  /* оформление документа: шрифт и цвет текста выбираются в редакторе */
+  function paintStyle(meta) {
+    var st = meta.style || {};
+    var docEl = document.querySelector('.doc');
+    if (!docEl) return;
+    docEl.setAttribute('data-font', st.font || 'antiqua');
+    if (st.color) docEl.style.setProperty('--doc-color', st.color);
+    else docEl.style.removeProperty('--doc-color');
+  }
+
+  function paintBrand(meta) {
+    var el = document.querySelector('.bar__brand');
+    if (!el) return;
+    var sub = (meta.brandSub || '').trim();
+    el.innerHTML = R.esc(brandOf(meta)) + (sub ? ' <span>' + R.esc(sub) + '</span>' : '');
+  }
+
   function render(data) {
     var doc = R.normalize(data.doc);
     var meta = doc.meta;
 
-    document.title = (meta.title || 'Регламент') + (meta.kicker ? ' — ' + meta.kicker : '');
+    document.title = brandOf(meta) + ' — ' + (meta.title || 'Регламент')
+      + (meta.kicker ? ' · ' + meta.kicker : '');
+    paintBrand(meta);
     var desc = document.querySelector('meta[name="description"]');
     if (desc && meta.lead) desc.setAttribute('content', meta.lead);
 
@@ -119,6 +144,8 @@
       + '</div>'
       + footHTML(meta)
       + (data.draft || isPreview ? '<div class="preview-flag">Черновик</div>' : '');
+
+    paintStyle(meta);
 
     var art = document.getElementById('heroArt');
     if (art) {
@@ -134,6 +161,9 @@
     wireToc(sheetList);
     wireToc(root.querySelector('.toc'));
     onScroll();
+
+    /* PDF: печать открывается сама, если пришли по ?print=1 (кнопка в редакторе) */
+    if (wantPrint) setTimeout(function () { window.print(); }, 700);
   }
 
   /* Яркость баннера именно в той части, где стоит текст: учитываем object-fit:cover

@@ -345,3 +345,34 @@
 .imgs__dim.is-small{color:#E5182C}
 .fig__img{max-width:100%;height:auto}
 
+/* == чип присутствия: кто ещё в редакторе ================================ */
+.apres{
+  display:inline-flex;align-items:center;gap:7px;
+  font-size:.66rem;letter-spacing:.06em;
+  padding:5px 10px;border:1px solid var(--rule);color:var(--fg-dim);
+  white-space:nowrap;max-width:34ch;overflow:hidden;text-overflow:ellipsis;
+}
+.apres[data-tone="warn"]{color:#E7C27A;border-color:rgba(231,194,122,.42)}
+.apres[data-tone="ok"]{color:var(--fg-dim)}
+
+/* == оформление документа: шрифты и цвета ================================ */
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.chip{
+  min-height:40px;padding:0 14px;cursor:pointer;
+  background:none;border:1px solid var(--rule);color:var(--fg);
+  font:inherit;font-size:.8rem;letter-spacing:.02em;
+}
+.chip.is-on{border-color:var(--fg-hi);color:var(--fg-hi);background:rgba(255,255,255,.04)}
+.swatches{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.sw{
+  width:34px;height:34px;border-radius:50%;cursor:pointer;padding:0;
+  border:1px solid rgba(255,255,255,.28);
+}
+.sw.is-on{outline:2px solid var(--fg-hi);outline-offset:2px}
+.sw--pick{width:38px;height:38px;border-radius:8px;background:none;border:1px dashed var(--rule)}
+@media (max-width:760px){
+  .chip{min-height:44px}
+  .sw{width:42px;height:42px}
+  .sw--pick{width:46px;height:46px}
+  .apres{display:none}
+}
