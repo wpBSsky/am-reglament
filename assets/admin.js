@@ -1116,6 +1116,14 @@
   }
 
   /* ── меню «ещё» ──────────────────────────────────────────────────────── */
+  /* PDF: печатаем черновик на странице сайта — вид сохраняется полностью */
+  function exportPdf() {
+    flushFocused();
+    var win = window.open('index.html?preview=1&print=1', '_blank', 'noopener');
+    if (!win) toast('Браузер не открыл вкладку — разрешите всплывающие окна', true);
+    else toast('Открыл черновик для печати — «Сохранить как PDF»');
+  }
+
   function moreMenu() {
     openSheet('<p class="sheet__title">Ещё</p>'
       + opt('jump', 'Перейти к разделу', 'оглавление: сразу к нужному месту')
@@ -1132,12 +1140,7 @@
           else if (cmd === 'meta') { closeSheet(); openMeta(); }
         else if (cmd === 'images') { closeSheet(); manageImages(); }
         else if (cmd === 'history') { closeSheet(); openHistory(); }
-        else if (cmd === 'pdf') {
-          closeSheet();
-          flushFocused();
-          window.open('index.html?preview=1&print=1', '_blank', 'noopener');
-          toast('Открыл печать черновика — выберите «Сохранить как PDF»');
-        }
+        else if (cmd === 'pdf') { closeSheet(); exportPdf(); }
         else if (cmd === 'help') { closeSheet(); openHelp(); }
         else if (cmd === 'logout') { closeSheet(); logout(); }
       });
@@ -1738,6 +1741,7 @@
         if (isRedo) redoStep(); else undoStep();
       });
       $('btnMore').addEventListener('click', moreMenu);
+      if ($('btnPdf')) $('btnPdf').addEventListener('click', exportPdf);
       $('btnAddSection').addEventListener('click', function () {
         flushFocused();
         snap();

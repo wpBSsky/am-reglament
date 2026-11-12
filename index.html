@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant:wght@300;400;500;600&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/am-web.css?v=1c8e51bc">
+<link rel="stylesheet" href="assets/am-web.css?v=3516d7a6">
 </head>
 <body id="top">
 
@@ -19,7 +19,6 @@
   <div class="bar__brand">Annihilation&nbsp;Masters <span>Регламент</span></div>
   <div class="bar__acts">
     <button class="bar__btn" id="btnToc" type="button">Содержание</button>
-    <button class="bar__btn" id="btnPdf" type="button" title="Сохранить регламент в PDF">PDF</button>
     <a class="bar__btn" id="btnAdmin" href="admin.html" title="Редактор регламента">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7.5 19.4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 13.9H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 7.5l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 10 3.6V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1.3z"/></svg>
       <span class="sr-only">Редактор</span>
@@ -44,15 +43,8 @@
   <p class="loading">Для отображения регламента нужен JavaScript.</p>
 </noscript>
 
-<script src="assets/render.js?v=1c8e51bc"></script>
-<script src="assets/page.js?v=1c8e51bc"></script>
-<script>
-/* кнопки шапки: оглавление и сохранение в PDF (печать браузера → «Сохранить как PDF») */
-(function () {
-  var toc = document.getElementById('btnToc');
-  var pdf = document.getElementById('btnPdf');
-  if (pdf) pdf.addEventListener('click', function () { window.print(); });
-})();
-</script>
+<script src="assets/render.js?v=3516d7a6"></script>
+<script src="assets/page.js?v=3516d7a6"></script>
+
 </body>
 </html>
