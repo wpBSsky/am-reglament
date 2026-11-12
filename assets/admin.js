@@ -1122,7 +1122,9 @@
       + opt('images', 'Картинки', 'что загружено и удалить лишнее')
       + opt('history', 'История версий', 'посмотреть и откатить')
       + opt('help', 'Подсказки', 'как править и публиковать')
-      + opt('logout', 'Выйти', 'закрыть редактор на этом устройстве'),
+      + opt('logout', 'Выйти', 'закрыть редактор на этом устройстве')
+      + '<p class="field__hint" style="margin-top:14px">Сборка ' + R.esc(BUILD) + ' — '
+      + 'если она не совпадает с той, что вам назвали, обновите страницу (Ctrl+F5).</p>',
       function (cmd) {
         if (cmd === 'jump') { closeSheet(); openJump(); }
           else if (cmd === 'meta') { closeSheet(); openMeta(); }
@@ -1168,6 +1170,15 @@
   }
 
   /* ── шапка страницы ──────────────────────────────────────────────────── */
+  /* версия сборки: видно сразу, старая страница в браузере или новая */
+  var BUILD = (function () {
+    try {
+      var m = /[?&]v=([0-9a-f]+)/.exec(document.currentScript && document.currentScript.src);
+      return (m && m[1]) || 'dev';
+    } catch (e) { return 'dev'; }
+  })();
+  try { document.documentElement.setAttribute('data-build', BUILD); } catch (e) {}
+
   /* сезон, формат, косты и редакция живут только в строках под названием —
      иначе одни и те же значения дублируются в двух местах */
   var META_FIELDS = [
