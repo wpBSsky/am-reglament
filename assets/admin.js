@@ -10,6 +10,9 @@
 
   var R = window.AM.render;
   var DRAFT_KEY = 'am.draft.v1';
+  var DRAFTS_KEY = 'am.drafts.v1';   /* лента автосохранений: к ней и откатываемся */
+  var DRAFTS_MAX = 12;
+  var DRAFT_EVERY = 90000;           /* не чаще раза в 1,5 минуты, если правки идут */
   var PASS_KEY = 'am.pass';
 
   var S = { doc: null, published: null, store: null, authed: false, dirty: false, lock: false, stale: false };
@@ -108,7 +111,10 @@
   /* ── статус / черновик ───────────────────────────────────────────────── */
   function updateStatus(text) {
     if (text) { statusEl.className = 'astatus is-busy'; statusText.textContent = text; return; }
-    if (S.dirty) { statusEl.className = 'astatus is-dirty'; statusText.textContent = 'Есть правки'; }
+    if (S.dirty) {
+      statusEl.className = 'astatus is-dirty';
+      statusText.textContent = 'Есть правки' + (S.draftAt ? ' · сохранено ' + clock(new Date(S.draftAt)) : '');
+    }
     else { statusEl.className = 'astatus is-saved'; statusText.textContent = 'Опубликовано'; }
   }
 
@@ -153,7 +159,59 @@
     draftTimer = setTimeout(saveDraft, 400);
   }
   function saveDraft() {
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ doc: S.doc, at: Date.now() })); } catch (e) { }
+    try {
+      S.draftAt = Date.now();
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ doc: S.doc, at: S.draftAt }));
+      snapshotDraft(false);
+    } catch (e) { }
+    if (S.dirty) updateStatus();
+  }
+
+  /* ── лента автосохранений: из неё достаём работу после сбоя ───────────── */
+  function readDrafts() {
+    try {
+      var list = JSON.parse(localStorage.getItem(DRAFTS_KEY) || '[]');
+      return Array.isArray(list) ? list.filter(function (d) { return d && d.doc && d.at; }) : [];
+    } catch (e) { return []; }
+  }
+
+  function writeDrafts(list) {
+    try { localStorage.setItem(DRAFTS_KEY, JSON.stringify(list)); }
+    catch (e) {
+      /* не влезли — выкидываем самые старые и пробуем ещё раз */
+      try {
+        list = list.slice(0, Math.max(2, Math.floor(list.length / 2)));
+        localStorage.setItem(DRAFTS_KEY, JSON.stringify(list));
+      } catch (e2) { }
+    }
+    paintDraftBadge();
+  }
+
+  function snapshotDraft(force) {
+    if (!S.doc || !S.doc.sections) return;
+    var list = readDrafts();
+    var top = list[0];
+    var same = top && sameDoc(top.doc, S.doc);
+    if (same) {
+      if (force) { top.at = Date.now(); writeDrafts(list); }
+      return;
+    }
+    if (!force && top && Date.now() - top.at < DRAFT_EVERY) return;
+    list.unshift({ at: Date.now(), doc: clone(S.doc) });
+    if (list.length > DRAFTS_MAX) list.length = DRAFTS_MAX;
+    writeDrafts(list);
+    if (S.dirty) updateStatus();
+  }
+
+  function paintDraftBadge() {
+    var btn = $('btnRecovery');
+    if (!btn) return;
+    var n = readDrafts().length;
+    var label = btn.querySelector('.rlabel');
+    if (label) label.textContent = n ? 'Черновики · ' + n : 'Черновики';
+    btn.title = n
+      ? 'Черновики и откат версий — сохранено автосохранений: ' + n
+      : 'Черновики и откат версий';
   }
   function readDraft() {
     try {
@@ -266,17 +324,28 @@
     setTimeout(function () { try { el.focus(); } catch (e) { } }, 60);
   }
 
-  /* печатаем — значит есть неопубликованное: статус и защита от чужой версии */
+  /* печатаем — значит есть неопубликованное: статус, автосохранение и защита
+     от чужой версии. Пауза 1,5 с фиксирует текст в документ: иначе при сбое
+     терялось бы то, что набрано в текущем поле. */
+  var typingTimer;
   adoc.addEventListener('input', function (e) {
     var el = e.target;
     if (!el || !el.getAttribute || !el.getAttribute('data-p')) return;
     if (S.lock) return;
     if (!S.dirty) { S.dirty = true; updateStatus(); }
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(function () {
+      var cur = document.activeElement;
+      if (cur && cur.getAttribute && cur.getAttribute('data-p')) commit(cur);
+    }, 1500);
   });
 
   /* закрытие вкладки не должно съедать набранное: фиксируем поле в черновик */
   window.addEventListener('beforeunload', function () {
-    try { flushFocused(); saveDraft(); } catch (e) { }
+    try { flushFocused(); saveDraft(); snapshotDraft(true); } catch (e) { }
+  });
+  window.addEventListener('pagehide', function () {
+    try { flushFocused(); snapshotDraft(true); } catch (e) { }
   });
 
   adoc.addEventListener('focusout', function (e) {
@@ -850,8 +919,121 @@
     });
   }
 
+  /* ── восстановление: автосохранения + опубликованные версии ──────────── */
+  function blockCount(doc) {
+    var n = 0;
+    (doc.sections || []).forEach(function (sec) { n += (sec.blocks || []).length; });
+    return n;
+  }
+
+  function recRow(when, meta, openCmd, backCmd, key) {
+    return '<div class="rec">'
+      + '<div class="rec__info">'
+      + '<span class="rec__when">' + R.esc(when) + '</span>'
+      + '<span class="rec__meta">' + R.esc(meta) + '</span>'
+      + '</div>'
+      + '<div class="rec__acts">'
+      + '<button class="btn btn--sm" type="button" data-cmd="' + openCmd + '" data-i="' + R.esc(key) + '">'
+      + (backCmd ? 'В редактор' : 'Открыть в редакторе') + '</button>'
+      + (backCmd
+        ? '<button class="btn btn--sm btn--ghost" type="button" data-cmd="' + backCmd
+          + '" data-i="' + R.esc(key) + '">Вернуть</button>'
+        : '')
+      + '</div></div>';
+  }
+
+  function paintDraftList() {
+    var box = $('recDrafts');
+    if (!box) return;
+    var list = readDrafts();
+    if (!list.length) {
+      box.innerHTML = '<span class="field__hint">Автосохранений пока нет: они появляются, как только вы что-то правите.</span>';
+      return;
+    }
+    box.innerHTML = list.map(function (d, i) {
+      var when = stamp(d.at) + (i === 0 ? ' · последнее' : '');
+      var meta = (d.doc.sections || []).length + ' разд. · ' + blockCount(d.doc) + ' блоков · '
+        + Math.round(JSON.stringify(d.doc).length / 1024) + ' КБ';
+      return recRow(when, meta, 'draftopen', null, i);
+    }).join('');
+  }
+
+  function paintVersionList() {
+    var box = $('recVersions');
+    if (!box) return;
+    if (S.store.mode === 'github') {
+      box.innerHTML = '<span class="field__hint">На GitHub история версий — это коммиты репозитория: '
+        + 'файл <code>content.json</code> → «History» → <b>Revert</b>. Здесь показываются '
+        + 'автосохранения этого браузера.</span>';
+      return;
+    }
+    box.innerHTML = '<span class="field__hint">Загружаю…</span>';
+    S.store.history().then(function (items) {
+      var box2 = $('recVersions');
+      if (!box2) return;
+      if (!items.length) {
+        box2.innerHTML = '<span class="field__hint">Пока нет: снимок появляется после каждой публикации.</span>';
+        return;
+      }
+      box2.innerHTML = items.map(function (it, i) {
+        var when = it.at ? stamp(new Date(it.at).getTime()) : it.name;
+        return recRow(when + (i === 0 ? ' · предыдущая' : ''),
+          it.sections + ' разд. · ' + Math.round(it.bytes / 1024) + ' КБ', 'veropen', 'verback', it.name);
+      }).join('');
+    }, function (e) {
+      var box2 = $('recVersions');
+      if (box2) box2.innerHTML = '<span class="field__hint">' + R.esc(e.message) + '</span>';
+    });
+  }
+
+  function openRecovery() {
+    openSheet('<p class="sheet__title">Восстановление</p>'
+      + '<p class="field__hint" style="margin:0 0 10px">Автосохранения лежат в этом браузере: '
+      + 'если пропал интернет, вкладка упала или страница закрылась — работа осталась здесь.</p>'
+      + '<div class="rec__head">Автосохранения <button class="rec__clear" type="button" data-cmd="draftclear">очистить</button></div>'
+      + '<div id="recDrafts"></div>'
+      + '<div class="rec__head" style="margin-top:20px">Опубликованные версии</div>'
+      + '<div id="recVersions"></div>'
+      + '<div class="sheet__actions"><button class="btn btn--ghost" type="button" data-cmd="close">Закрыть</button></div>',
+      function (cmd, btn) {
+        if (cmd === 'close') { closeSheet(); return; }
+        if (cmd === 'draftopen') { openDraft(+btn.getAttribute('data-i')); return; }
+        if (cmd === 'draftclear') { clearDrafts(); return; }
+        if (cmd === 'veropen') { loadVersion(btn.getAttribute('data-i')); return; }
+        if (cmd === 'verback') { closeSheet(); restoreVersion(btn.getAttribute('data-i')); return; }
+      });
+    paintDraftList();
+    paintVersionList();
+  }
+
+  function openDraft(i) {
+    var d = readDrafts()[i];
+    if (!d) return;
+    snapshotDraft(true);          /* что открыто сейчас — тоже в автосохранения */
+    S.doc = R.normalize(clone(d.doc));
+    S.dirty = true;
+    saveDraft();
+    closeSheet();
+    renderAll();
+    updateStatus();
+    toast('Автосохранение от ' + stamp(d.at) + ' открыто — проверьте и опубликуйте');
+  }
+
+  function clearDrafts() {
+    var n = readDrafts().length;
+    confirmSheet('Очистить автосохранения?',
+      'Удалятся все ' + n + ' автосохранений этого браузера. Опубликованная страница и её история не тронуты.',
+      'Очистить', function () {
+        try { localStorage.removeItem(DRAFTS_KEY); } catch (e) { }
+        paintDraftBadge();
+        openRecovery();
+        toast('Автосохранения очищены');
+      });
+  }
+
   function loadVersion(name) {
     S.store.historyDoc(name).then(function (doc) {
+      snapshotDraft(true);
       snap();
       S.doc = R.normalize(doc);
       S.dirty = true;
@@ -1284,6 +1466,7 @@
       return;
     }
     flushFocused();
+    snapshotDraft(true);          /* перед публикацией — снимок того, что было */
     var doc = clone(S.doc);
     doc.meta = doc.meta || {};
     doc.meta.updated = today();
@@ -1338,6 +1521,7 @@
   /* ── запуск ──────────────────────────────────────────────────────────── */
   var bound = false;
   function startEditing() {
+    paintDraftBadge();
     app.hidden = false;
     if (!bound) {
       bound = true;
@@ -1366,7 +1550,10 @@
         renderAll();
         focusPath('sections.' + (S.doc.sections.length - 1) + '.title');
       });
+      $('btnRecovery').addEventListener('click', openRecovery);
+      $('btnDrafts').addEventListener('click', openRecovery);
       $('btnRestore').addEventListener('click', function () {
+        if (readDrafts().length > 1) { openRecovery(); return; }
         var d = readDraft();
         if (!d) return;
         S.doc = R.normalize(clone(d.doc));

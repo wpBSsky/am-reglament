@@ -41,6 +41,9 @@
     <span class="astatus" id="status"><i></i><span id="statusText">Опубликовано</span></span>
       <span class="aplace" id="place" title="Где окажется опубликованное"></span>
     <div class="abar__acts">
+      <button class="btn" id="btnRecovery" type="button" title="Черновики и откат версий">
+        <span class="rlabel">Черновики</span><span class="rglyph" aria-hidden="true">⟲</span>
+      </button>
       <button class="btn btn--icon" id="btnMore" type="button" title="Шапка, картинки, история" aria-label="Ещё">⋯</button>
       <a class="btn" id="btnPreview" href="index.html?preview=1" target="_blank" rel="noopener">Просмотр</a>
       <button class="btn btn--primary" id="btnPublish" type="button">Опубликовать</button>
@@ -50,6 +53,7 @@
   <div class="draftbar" id="draftbar" hidden>
     <span id="draftText"></span>
     <button class="btn btn--sm" id="btnRestore" type="button">Восстановить</button>
+    <button class="btn btn--sm btn--ghost" id="btnDrafts" type="button">Все черновики</button>
     <button class="btn btn--sm btn--ghost" id="btnDiscard" type="button">Отбросить</button>
   </div>
 

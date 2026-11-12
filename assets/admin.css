@@ -92,7 +92,39 @@
   color:var(--fg-dim);border:1px solid var(--rule);white-space:nowrap;cursor:default;
 }
 .aplace--github{color:var(--fg-hi);border-color:rgba(255,255,255,.28)}
-@media (max-width:760px){.astatus{display:none}.aplace{display:none}}
+/* == ВОССТАНОВЛЕНИЕ ======================================================= */
+.rec__head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--fg-dim);
+  padding-bottom:8px;border-bottom:1px solid var(--rule-soft);margin-bottom:4px;
+}
+.rec__clear{
+  font:inherit;font-size:.55rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--fg-dim);background:none;border:0;cursor:pointer;padding:6px 2px;
+}
+.rec__clear:hover{color:var(--red-hi)}
+.rec{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:11px 0;border-bottom:1px solid var(--rule-soft);
+}
+.rec:last-child{border-bottom:0}
+.rec__info{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1 1 180px}
+.rec__when{font-size:.86rem;color:var(--fg)}
+.rec__meta{font-size:.7rem;color:var(--fg-dim)}
+.rec__acts{display:flex;gap:8px;flex:none}
+.rglyph{display:none}
+
+@media (max-width:760px){
+  .astatus{display:none}
+  .aplace{display:none}
+  /* планшет и телефон: кнопки крупные, в полную ширину, ряд переносом */
+  .rec{flex-direction:column;align-items:stretch;gap:9px}
+  .rec__acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .rec__acts .btn{min-height:44px}
+  .rec__clear{padding:8px 4px}
+  .rlabel{display:none}
+  .rglyph{display:inline}
+}
 
 .draftbar{
   position:fixed;top:60px;left:0;right:0;z-index:70;
