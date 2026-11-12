@@ -38,15 +38,24 @@
   }
 
   function metaItems(meta) {
-    var items = Array.isArray(meta.hero) && meta.hero.length
+    /* hero — единственный источник строк; если его нет в документе, показываем
+       стандартные из старых полей (совместимость). Пустой массив = строк нет. */
+    var items = Array.isArray(meta.hero)
       ? meta.hero.map(function (p) { return [p && p.k, p && p.v]; })
       : [
         ['Сезон', meta.season],
         ['Формат', meta.format],
         ['Косты', meta.costs],
-        ['Редакция', meta.edition ? meta.edition + (meta.updated ? ' · ' + fmtDate(meta.updated) : '') : fmtDate(meta.updated)]
+        ['Редакция', meta.edition ? meta.edition + (meta.updated ? ' · {updated}' : '') : meta.updated ? '{updated}' : '']
       ];
-    items = items.filter(function (p) { return p[1]; }).slice(0, 6);
+    items = items
+      .map(function (p) {
+        /* {updated} — чтобы дата в строке оставалась живой, а не замирала при сохранении */
+        return [String(p[0] == null ? '' : p[0]), String(p[1] == null ? '' : p[1])
+          .replace(/\{updated\}/g, fmtDate(meta.updated) || '')];
+      })
+      .filter(function (p) { return p[1]; })
+      .slice(0, 6);
     return items.map(function (p) {
       return '<div><dt>' + R.esc(p[0]) + '</dt><dd>' + R.esc(p[1]) + '</dd></div>';
     }).join('');

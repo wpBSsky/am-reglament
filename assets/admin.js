@@ -1168,15 +1168,12 @@
   }
 
   /* ── шапка страницы ──────────────────────────────────────────────────── */
+  /* сезон, формат, косты и редакция живут только в строках под названием —
+     иначе одни и те же значения дублируются в двух местах */
   var META_FIELDS = [
     ['kicker', 'Надзаголовок', 0],
     ['title', 'Название турнира', 0],
     ['lead', 'Лид под названием', 1],
-    ['season', 'Сезон', 0],
-    ['format', 'Формат', 0],
-    ['costs', 'Косты', 0],
-    ['edition', 'Редакция', 0],
-    ['updated', 'Обновлено (ГГГГ-ММ-ДД)', 0],
     ['footnote', 'Примечание в подвале', 1]
   ];
 
@@ -1196,24 +1193,25 @@
   /* строки шапки: если своих нет — показываем стандартные как обычные, чтобы их
      можно было переименовать, убрать и переставить */
   function heroRows(m) {
-    if (Array.isArray(m.hero) && m.hero.length) {
+    if (Array.isArray(m.hero)) {
       return m.hero.map(function (r) { return { k: (r && r.k) || '', v: (r && r.v) || '' }; });
     }
     return defaultHero(m);
   }
 
   function setHero(m, rows) {
-    var clean = rows.map(function (r) { return { k: r.k || '', v: r.v || '' }; });
-    if (clean.length) m.hero = clean; else delete m.hero;
+    /* всегда массив: пустой массив = «под названием ничего не выводим» */
+    m.hero = rows.map(function (r) { return { k: r.k || '', v: r.v || '' }; });
   }
 
   function heroBlock(m) {
     var rows = heroRows(m);
-    var own = Array.isArray(m.hero) && m.hero.length;
+    var own = Array.isArray(m.hero);
     var html = '<p class="micro" style="margin:20px 0 8px">Строки под названием</p>'
       + '<p class="field__hint" style="margin:0 0 10px">'
-      + (own ? 'Свои строки.' : 'Пока стандартные — правьте их прямо здесь: переименовать, убрать, переставить.')
-      + ' На странице видно до шести строк; пустое значение скрывает строку.</p>';
+      + (own ? '' : 'Пока стандартные — правьте их прямо здесь: переименовать, убрать, переставить. ')
+      + 'На странице видно до шести строк, пустое значение строку скрывает. '
+      + 'Вместо даты можно вписать <code>{updated}</code> — подставится дата обновления.</p>';
     rows.forEach(function (r, i) {
       html += '<div class="pair">'
         + '<input class="field__input pair__k" data-hero="' + i + '.k" value="' + R.esc(r.k || '') + '" placeholder="Подпись">'
@@ -1238,11 +1236,13 @@
   }
 
   function defaultHero(m) {
+    var date = m.updated ? '{updated}' : '';   /* {updated} подставится датой при показе */
+    var ed = m.edition ? (date ? m.edition + ' · ' + date : m.edition) : date;
     return [
       { k: 'Сезон', v: m.season || '' },
       { k: 'Формат', v: m.format || '' },
       { k: 'Косты', v: m.costs || '' },
-      { k: 'Редакция', v: m.edition || '' }
+      { k: 'Редакция', v: ed }
     ].filter(function (p) { return p.v; });
   }
 
