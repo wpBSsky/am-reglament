@@ -1,0 +1,9 @@
+PASS  lock-файл скачался  — v,kdf,cipher,data
+PASS  неверный пароль не расшифровывает lock  — Пароль не подошёл
+PASS  пароль annihilation-2026 подошёл  — wpBSsky/am-reglament@main
+PASS  токен читает content.json  — HTTP 200
+PASS  в репозитории 11 разделов  — 11 разделов
+PASS  шапка на месте  — Annihilation Masters
+PASS  картинка регламента в документе
+
+ИТОГ: всё зелёное
