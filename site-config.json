@@ -1,0 +1,10 @@
+{
+  "store": "github",
+  "github": {
+    "owner": "wpBSsky",
+    "repo": "am-reglament",
+    "branch": "main",
+    "path": "content.json",
+    "lock": "admin.lock.json"
+  }
+}
