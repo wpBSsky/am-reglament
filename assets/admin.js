@@ -12,7 +12,7 @@
   var DRAFT_KEY = 'am.draft.v1';
   var PASS_KEY = 'am.pass';
 
-  var S = { doc: null, published: null, store: null, authed: false, dirty: false, lock: false };
+  var S = { doc: null, published: null, store: null, authed: false, dirty: false, lock: false, stale: false };
 
   /* ── история шагов ───────────────────────────────────────────────────────
      Снимки документа до каждого изменения. На планшете цtrl+z нет, поэтому
@@ -111,6 +111,39 @@
     if (S.dirty) { statusEl.className = 'astatus is-dirty'; statusText.textContent = 'Есть правки'; }
     else { statusEl.className = 'astatus is-saved'; statusText.textContent = 'Опубликовано'; }
   }
+
+  /* ── чужак опубликовал: предупредить до нажатия «Опубликовать» ────────── */
+  var freshAt = 0, freshBusy = false;
+  function checkFresh() {
+    if (!S.authed || !S.store || S.store.mode === 'readonly') return;
+    if (freshBusy || Date.now() - freshAt < 20000) return;
+    freshBusy = true;
+    freshAt = Date.now();
+    S.store.load().then(function (fresh) {
+      freshBusy = false;
+      var theirs = R.normalize(clone(fresh));
+      if (sameDoc(theirs, S.published)) return;
+      var typing = document.activeElement && document.activeElement.getAttribute
+        && document.activeElement.getAttribute('data-p');
+      if (!S.dirty && !typing) {
+        /* терять нечего — просто подтягиваем свежую версию */
+        S.published = theirs;
+        S.doc = R.normalize(clone(theirs));
+        S.stale = false;
+        saveDraft();
+        renderAll();
+        toast('Страницу обновили с другого устройства — подтянул свежую версию');
+        return;
+      }
+      S.stale = true;
+      toast('Пока вы правите, страницу обновили — при публикации ваша версия заменит чужую', true);
+    }, function () { freshBusy = false; });
+  }
+
+  window.addEventListener('focus', checkFresh);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) checkFresh();
+  });
 
   var draftTimer;
   function touch() {
@@ -232,6 +265,19 @@
     el.scrollIntoView({ block: 'center', behavior: 'smooth' });
     setTimeout(function () { try { el.focus(); } catch (e) { } }, 60);
   }
+
+  /* печатаем — значит есть неопубликованное: статус и защита от чужой версии */
+  adoc.addEventListener('input', function (e) {
+    var el = e.target;
+    if (!el || !el.getAttribute || !el.getAttribute('data-p')) return;
+    if (S.lock) return;
+    if (!S.dirty) { S.dirty = true; updateStatus(); }
+  });
+
+  /* закрытие вкладки не должно съедать набранное: фиксируем поле в черновик */
+  window.addEventListener('beforeunload', function () {
+    try { flushFocused(); saveDraft(); } catch (e) { }
+  });
 
   adoc.addEventListener('focusout', function (e) {
     var el = e.target;
@@ -848,6 +894,10 @@
         + '<p><b>Где я.</b> «⋯» в панели → «Перейти к разделу»: оглавление, сразу к нужному месту.</p>'
         + '<p><b>Публикация.</b> «Опубликовать» в верхней панели. До этого всё живёт в черновике этого браузера; '
       + '«Просмотр» показывает черновик в новой вкладке.</p>'
+    + '<p><b>Если правите вдвоём.</b> Перед публикацией редактор проверяет страницу: если кто-то успел '
+    + 'опубликовать своё, он покажет, какие разделы расходятся, и спросит — заменить чужую версию вашей '
+    + 'или взять их. Заменённая версия не теряется, она остаётся в истории. Надёжнее договориться '
+    + 'и публиковать по очереди.</p>'
       + '<p><b>Картинки.</b> Блок «Картинка» → «Заменить картинку»: загрузить с устройства или взять из уже '
       + 'загруженных. Картинка шапки меняется там же, в «Шапке страницы»; в списке виден размер кадра.</p>'
         + '<p><b>Размер картинки.</b> Ширина блока: во всю, поуже, половина. Кадр никогда не растягивается '
@@ -1147,22 +1197,33 @@
   }
 
   /* ── публикация ──────────────────────────────────────────────────────── */
-  function publish() {
-    if (!S.authed) { showGate(); return; }
-    if (S.store.mode === 'readonly') {
-      toast('Публикация не настроена — см. setup.html', true);
-      return;
+  /* что именно расходится с чужой версией — коротким списком */
+  function diffSummary(mine, theirs) {
+    var out = [];
+    function metaKey(m) {
+      var c = clone(m || {});
+      delete c.updated;   /* дата обновления меняется при каждой публикации */
+      return JSON.stringify(c);
     }
-    flushFocused();
-    updateStatus('Публикую…');
-    var doc = clone(S.doc);
-    doc.meta = doc.meta || {};
-    doc.meta.updated = today();
+    if (metaKey(mine.meta) !== metaKey(theirs.meta)) out.push('шапка страницы');
+    var max = Math.max(mine.sections.length, theirs.sections.length);
+    for (var i = 0; i < max; i++) {
+      var a = mine.sections[i], b = theirs.sections[i];
+      if (JSON.stringify(a) !== JSON.stringify(b)) {
+        var name = (b && b.title) || (a && a.title) || ('раздел ' + (i + 1));
+        out.push('«' + name + '»');
+      }
+    }
+    return out;
+  }
 
+  function doPublish(doc) {
+    updateStatus('Публикую…');
     S.store.publish(doc).then(function () {
-      S.doc = doc;
+      S.doc = clone(doc);
       S.published = clone(doc);
       S.dirty = false;
+      S.stale = false;
       saveDraft();
       renderAll();
       toast('Опубликовано · ' + clock());
@@ -1174,6 +1235,69 @@
         return;
       }
       toast('Не сохранилось: ' + e.message, true);
+    });
+  }
+
+  function conflictSheet(fresh) {
+    var mine = clone(S.doc);
+    mine.meta = mine.meta || {};
+    mine.meta.updated = today();
+    var changed = diffSummary(mine, fresh);
+    var list = changed.length
+      ? '<p class="field__hint" style="margin:0 0 12px">Расходится: ' + R.esc(changed.slice(0, 6).join(', '))
+        + (changed.length > 6 ? ' и ещё ' + (changed.length - 6) : '') + '.</p>'
+      : '';
+    openSheet('<p class="sheet__title">Регламент успели изменить</p>'
+      + '<p style="font-size:.92rem;line-height:1.55;margin:0 0 10px">Пока вы правили, кто-то опубликовал свою '
+      + 'версию. Если опубликовать сейчас, его правки заменит ваша — они останутся в истории версий, '
+      + 'но на странице их не будет.</p>' + list
+      + '<div class="sheet__list">'
+      + opt('force', 'Опубликовать мою версию', 'ваша заменит чужую')
+      + opt('theirs', 'Взять их версию', 'мои неопубликованные правки пропадут')
+      + '</div>'
+      + '<div class="sheet__actions"><button class="btn btn--ghost" type="button" data-cmd="close">Отмена</button></div>',
+      function (cmd) {
+        if (cmd === 'close') { closeSheet(); updateStatus(); return; }
+        if (cmd === 'force') {
+          closeSheet();
+          doPublish(mine);
+          return;
+        }
+        if (cmd === 'theirs') {
+          closeSheet();
+          snap();
+          S.published = R.normalize(clone(fresh));
+          S.doc = R.normalize(clone(fresh));
+          S.dirty = false;
+          S.stale = false;
+          saveDraft();
+          renderAll();
+          toast('Взял свежую версию — ваши несохранённые правки отменены');
+        }
+      });
+  }
+
+  function publish(force) {
+    if (!S.authed) { showGate(); return; }
+    if (S.store.mode === 'readonly') {
+      toast('Публикация не настроена — см. setup.html', true);
+      return;
+    }
+    flushFocused();
+    var doc = clone(S.doc);
+    doc.meta = doc.meta || {};
+    doc.meta.updated = today();
+
+    if (force) { doPublish(doc); return; }
+
+    updateStatus('Проверяю, не правил ли кто-то ещё…');
+    /* перед записью смотрим, что лежит на сервере: чужую публикацию не затираем молча */
+    S.store.load().then(function (fresh) {
+      var theirs = R.normalize(clone(fresh));
+      if (!sameDoc(theirs, S.published)) { conflictSheet(theirs); return; }
+      doPublish(doc);
+    }, function () {
+      doPublish(doc);   /* не смогли проверить — публикуем как раньше */
     });
   }
 
@@ -1217,7 +1341,7 @@
     app.hidden = false;
     if (!bound) {
       bound = true;
-      $('btnPublish').addEventListener('click', publish);
+      $('btnPublish').addEventListener('click', function () { publish(false); });
       $('btnUndo').addEventListener('click', function () { flushFocused(); undoStep(); });
       $('btnRedo').addEventListener('click', function () { flushFocused(); redoStep(); });
       document.addEventListener('keydown', function (e) {
@@ -1272,9 +1396,30 @@
       + '</div></div>');
   }
 
+  /* честно показываем, куда уйдёт публикация: в этот файл или в репозиторий */
+  function paintPlace() {
+    var el = $('place');
+    if (!el || !S.store) return;
+    var mode = S.store.mode;
+    if (mode === 'github') {
+      el.className = 'aplace aplace--github';
+      el.textContent = 'GitHub';
+      el.title = 'Публикация уходит коммитом в репозиторий GitHub Pages';
+    } else if (mode === 'local') {
+      el.className = 'aplace';
+      el.textContent = 'Этот файл';
+      el.title = 'Публикация пишет content.json рядом с сайтом';
+    } else {
+      el.className = 'aplace';
+      el.textContent = 'Только чтение';
+      el.title = 'Публикация не настроена';
+    }
+  }
+
   var store = window.AMStore.init();
   store.then(function (s) {
     S.store = s;
+    paintPlace();
     return s.load();
   }).then(function (doc) {
     S.published = R.normalize(clone(doc));

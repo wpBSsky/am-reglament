@@ -85,7 +85,14 @@
 .astatus.is-dirty i{background:var(--red-hi)}
 .astatus.is-saved i{background:#fff}
 .astatus.is-busy{color:var(--fg-hi)}
-@media (max-width:760px){.astatus{display:none}}
+/* где окажется опубликованное: этот файл или репозиторий */
+.aplace{
+  display:inline-flex;align-items:center;margin-left:10px;padding:2px 7px;
+  font-size:.55rem;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--fg-dim);border:1px solid var(--rule);white-space:nowrap;cursor:default;
+}
+.aplace--github{color:var(--fg-hi);border-color:rgba(255,255,255,.28)}
+@media (max-width:760px){.astatus{display:none}.aplace{display:none}}
 
 .draftbar{
   position:fixed;top:60px;left:0;right:0;z-index:70;

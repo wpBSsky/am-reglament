@@ -402,17 +402,24 @@
     return { upload: no, images: no, removeImage: no, history: no, historyDoc: no, restore: no };
   }
 
+  function pingLocal() {
+    return fetch('api/ping?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; });
+  }
+
+  /* Свой сервер главнее файла настроек: если страницу отдаёт server.py, публикация
+     идёт в локальный content.json. Иначе копия, поднятая локально «посмотреть»,
+     молча писала бы в репозиторий — ровно этот случай один раз уже случился. */
   function init() {
-    return readConfig().then(function (cfg) {
-      if (cfg && (cfg.store === 'github' || cfg.github)) {
-        return githubStore(cfg.github || cfg);
-      }
-      return fetch('api/ping?t=' + Date.now(), { cache: 'no-store' })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .catch(function () { return null; })
-        .then(function (ping) {
-          return ping && ping.ok ? localStore() : readonlyStore();
-        });
+    return pingLocal().then(function (ping) {
+      if (ping && ping.ok) return localStore();
+      return readConfig().then(function (cfg) {
+        if (cfg && (cfg.store === 'github' || cfg.github)) {
+          return githubStore(cfg.github || cfg);
+        }
+        return readonlyStore();
+      });
     });
   }
 
