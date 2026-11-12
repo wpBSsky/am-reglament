@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex, nofollow">
+<title>Редактор регламента — Annihilation Masters</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:wght@300;400;500;600&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/am-web.css">
+<link rel="stylesheet" href="assets/admin.css">
+</head>
+<body class="adm">
+
+<!-- ── вход ───────────────────────────────────────────────────────────── -->
+<div class="gate" id="gate" hidden>
+  <form class="gate__card" id="gateForm" autocomplete="on">
+    <p class="micro">Annihilation Masters</p>
+    <h1 class="gate__title">Редактор регламента</h1>
+    <label class="field">
+      <span class="field__label">Пароль администратора</span>
+      <input class="field__input" id="gatePass" type="password" name="password"
+             autocomplete="current-password" enterkeyhint="go" required>
+    </label>
+    <button class="btn btn--primary btn--wide" id="gateBtn" type="submit">Войти</button>
+    <p class="gate__hint" id="gateHint"></p>
+    <p class="field__hint" style="margin-top:20px">
+      Пароль задаётся при запуске сервера: <code>python server.py --set-password</code>.
+    </p>
+  </form>
+</div>
+
+<!-- ── редактор ───────────────────────────────────────────────────────── -->
+<div id="app" hidden>
+  <header class="abar">
+    <a class="abar__back" href="index.html">← Страница</a>
+    <span class="astatus" id="status"><i></i><span id="statusText">Опубликовано</span></span>
+    <div class="abar__acts">
+      <button class="btn btn--icon" id="btnMore" type="button" title="Шапка, картинки, история" aria-label="Ещё">⋯</button>
+      <a class="btn" id="btnPreview" href="index.html?preview=1" target="_blank" rel="noopener">Просмотр</a>
+      <button class="btn btn--primary" id="btnPublish" type="button">Опубликовать</button>
+    </div>
+  </header>
+
+  <div class="draftbar" id="draftbar" hidden>
+    <span id="draftText"></span>
+    <button class="btn btn--sm" id="btnRestore" type="button">Восстановить</button>
+    <button class="btn btn--sm btn--ghost" id="btnDiscard" type="button">Отбросить</button>
+  </div>
+
+  <main class="adoc" id="adoc"></main>
+  <div class="adoc__foot">
+    <button class="addsec" id="btnAddSection" type="button">＋ Добавить раздел</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet__scrim" data-close></div>
+  <div class="sheet__card" id="sheetCard"></div>
+</div>
+
+<div class="undo" id="undo" hidden>
+  <button class="tbtn" id="btnUndo" type="button" title="Отменить последнее действие" aria-label="Отменить">↶</button>
+  <button class="tbtn" id="btnRedo" type="button" title="Повторить отменённое" aria-label="Повторить">↷</button>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="assets/render.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/admin.js"></script>
+</body>
+</html>

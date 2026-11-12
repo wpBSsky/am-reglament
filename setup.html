@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex, nofollow">
+<title>Настройка публикации — Annihilation Masters</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:wght@300;400;500;600&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/am-web.css">
+<link rel="stylesheet" href="assets/admin.css">
+</head>
+<body class="adm">
+
+<div class="setup">
+  <p class="micro">Annihilation Masters · разово</p>
+  <h1 class="gate__title">Настройка публикации на GitHub Pages</h1>
+  <p class="setup__lead">
+    Нужно один раз, с компьютера. Мастер соберёт два файла, которые вы положите
+    в репозиторий рядом с <code>index.html</code>. После этого редактор на сайте
+    сможет сохранять правки сам — пароль останется единственным, что нужно помнить.
+  </p>
+
+  <ol class="setup__steps">
+    <li>Создайте <b>публичный</b> репозиторий, например <code>am-reglament</code>, и загрузите в него всё содержимое папки <code>site/</code> (без <code>server.py</code>, <code>server.config.json</code> и <code>history/</code>).</li>
+    <li>Включите Pages: <i>Settings → Pages → Source: Deploy from a branch → main / (root)</i>.</li>
+    <li>Создайте токен: <i>Settings → Developer settings → Personal access tokens → Fine-grained</i>, доступ только к этому репозиторию, право <b>Contents: Read and write</b>, срок — по желанию.</li>
+    <li>Заполните поля ниже и нажмите «Собрать файлы». Токен никуда не отправляется: он шифруется прямо в браузере вашим паролем.</li>
+    <li>Скачайте <code>site-config.json</code> и <code>admin.lock.json</code>, добавьте их в репозиторий, подождите минуту — откройте <code>/admin.html</code> на сайте Pages и войдите тем же паролем.</li>
+  </ol>
+
+  <form class="setup__form" id="setupForm" autocomplete="off">
+    <div class="setup__row">
+      <label class="field">
+        <span class="field__label">Владелец (логин GitHub)</span>
+        <input class="field__input" id="fOwner" required placeholder="samir-linky">
+      </label>
+      <label class="field">
+        <span class="field__label">Репозиторий</span>
+        <input class="field__input" id="fRepo" required placeholder="am-reglament">
+      </label>
+    </div>
+    <div class="setup__row">
+      <label class="field">
+        <span class="field__label">Ветка</span>
+        <input class="field__input" id="fBranch" value="main">
+      </label>
+      <label class="field">
+        <span class="field__label">Файл с текстом</span>
+        <input class="field__input" id="fPath" value="content.json">
+      </label>
+    </div>
+    <label class="field">
+      <span class="field__label">Токен с правом Contents: Read and write</span>
+      <textarea class="field__area" id="fToken" rows="2" required placeholder="github_pat_…"></textarea>
+      <span class="field__hint">Токен шифруется паролем и уходит в репозиторий только в зашифрованном виде.</span>
+    </label>
+    <div class="setup__row">
+      <label class="field">
+        <span class="field__label">Пароль редактора</span>
+        <input class="field__input" id="fPass" type="password" required minlength="5" autocomplete="new-password">
+      </label>
+      <label class="field">
+        <span class="field__label">Ещё раз</span>
+        <input class="field__input" id="fPass2" type="password" required minlength="5" autocomplete="new-password">
+      </label>
+    </div>
+    <button class="btn btn--primary btn--wide" id="fBuild" type="submit">Собрать файлы</button>
+    <p class="gate__hint" id="fHint"></p>
+  </form>
+
+  <div class="setup__out" id="out" hidden>
+    <div class="setup__file">
+      <p class="micro">site-config.json</p>
+      <pre class="setup__json" id="outConfig"></pre>
+      <button class="btn" type="button" data-save="site-config.json">Скачать</button>
+    </div>
+    <div class="setup__file">
+      <p class="micro">admin.lock.json</p>
+      <pre class="setup__json" id="outLock"></pre>
+      <button class="btn" type="button" data-save="admin.lock.json">Скачать</button>
+    </div>
+    <p class="field__hint">
+      Пароль нигде не сохраняется — запишите его. Потеряете — соберите файлы заново.
+    </p>
+  </div>
+</div>
+
+<script src="assets/store.js"></script>
+<script src="assets/setup.js"></script>
+</body>
+</html>
