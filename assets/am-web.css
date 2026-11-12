@@ -96,14 +96,16 @@ body::after{
   font-family:var(--display);font-size:.9rem;letter-spacing:.22em;
   text-transform:uppercase;color:var(--fg-hi);white-space:nowrap;
 }
-.bar__brand span{color:var(--fg-dim);font-family:var(--text);font-size:.62rem;letter-spacing:var(--track)}
+.bar__brand span{color:#C0BDB8;font-family:var(--text);font-size:.62rem;letter-spacing:var(--track)}
+.bar__brand{text-shadow:0 1px 14px rgba(0,0,0,.85)}
+.bar__btn{text-shadow:0 1px 12px rgba(0,0,0,.7)}
 .bar__acts{margin-left:auto;display:flex;align-items:center;gap:clamp(2px,1vw,10px)}
 .bar__btn{
   display:inline-flex;align-items:center;gap:7px;
   min-height:40px;padding:0 12px;
   background:none;border:0;border-radius:0;cursor:pointer;
   font-size:.66rem;letter-spacing:var(--track-sm);text-transform:uppercase;
-  color:var(--fg-dim);text-decoration:none;
+  color:#B4B1AC;text-decoration:none;
   transition:color .18s ease;
 }
 .bar__btn:hover,.bar__btn:focus-visible{color:var(--fg-hi)}
@@ -130,18 +132,35 @@ body::after{
     linear-gradient(to bottom, rgba(0,0,0,.20) 0, rgba(0,0,0,0) 30%, rgba(6,6,8,.42) 62%, rgba(6,6,8,.90) 88%, var(--ink) 99%),
     linear-gradient(to right, rgba(6,6,8,.70) 0, rgba(6,6,8,.32) 36%, rgba(6,6,8,.06) 64%, transparent 82%);
 }
+/* Светлый или пёстрый баннер: подложка плотнее, картинка чуть приглушается.
+   Режим ставит page.js, замерив яркость левой нижней части арта. */
+.hero[data-contrast="mid"] .hero__art::after{
+  background:
+    linear-gradient(to bottom, rgba(0,0,0,.24) 0, rgba(0,0,0,0) 26%, rgba(6,6,8,.58) 58%, rgba(6,6,8,.94) 86%, var(--ink) 99%),
+    linear-gradient(to right, rgba(6,6,8,.82) 0, rgba(6,6,8,.46) 40%, rgba(6,6,8,.10) 68%, transparent 84%);
+}
+.hero[data-contrast="high"] .hero__art::after{
+  background:
+    radial-gradient(120% 90% at 18% 82%, rgba(4,4,6,.88) 0, rgba(4,4,6,.55) 42%, rgba(4,4,6,0) 74%),
+    linear-gradient(to bottom, rgba(0,0,0,.30) 0, rgba(0,0,0,0) 22%, rgba(6,6,8,.70) 54%, rgba(6,6,8,.96) 84%, var(--ink) 99%),
+    linear-gradient(to right, rgba(6,6,8,.90) 0, rgba(6,6,8,.55) 42%, rgba(6,6,8,.14) 70%, transparent 86%);
+}
+.hero[data-contrast="high"] .hero__art img{filter:brightness(.82) saturate(.94)}
+.hero[data-contrast="mid"] .hero__art img{filter:brightness(.94)}
 .hero__inner{width:100%;max-width:var(--wrap);margin:0 auto;
   padding: calc(var(--bar-h) + 64px) var(--pad) clamp(34px,6vh,68px)}
-.hero__kicker{display:flex;align-items:center;gap:14px;margin-bottom:clamp(14px,2.4vh,26px)}
+.hero__kicker{display:flex;align-items:center;gap:14px;margin-bottom:clamp(14px,2.4vh,26px);text-shadow:0 1px 16px rgba(0,0,0,.85)}
 .hero__kicker::before{content:"";width:34px;height:1px;background:var(--red-hi)}
 .hero__title{
   font-family:var(--display);font-weight:300;
+  text-shadow:0 2px 40px rgba(0,0,0,.72), 0 1px 4px rgba(0,0,0,.55);
   font-size:clamp(2.5rem,8.4vw,5.4rem);line-height:.94;letter-spacing:.03em;
   text-transform:uppercase;color:var(--fg-hi);margin:0 0 clamp(16px,2.6vh,28px);
   text-wrap:balance;max-width:min(100%,42rem);
 }
 .hero__lead{
   font-family:var(--display);font-weight:300;
+  text-shadow:0 1px 22px rgba(0,0,0,.80), 0 1px 3px rgba(0,0,0,.45);
   font-size:clamp(1.1rem,2.6vw,1.55rem);line-height:1.36;color:#E6E3DE;
   max-width:44ch;margin:0 0 clamp(26px,4vh,44px);text-wrap:pretty;
 }
@@ -160,8 +179,8 @@ body::after{
   .hero__meta > div + div{padding-left:18px;border-left:1px solid var(--rule-soft)}
 }
 .hero__meta dt{
-  font-size:.62rem;letter-spacing:var(--track);text-transform:uppercase;
-  color:var(--fg-dim);margin-bottom:6px;
+  font-size:.66rem;letter-spacing:var(--track);text-transform:uppercase;
+  color:var(--fg);margin-bottom:6px;text-shadow:0 1px 12px rgba(0,0,0,.9);
 }
 .hero__meta dd{
   margin:0;font-family:var(--display);font-size:clamp(.98rem,1.6vw,1.12rem);

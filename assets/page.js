@@ -112,13 +112,61 @@
       + (data.draft || isPreview ? '<div class="preview-flag">Черновик</div>' : '');
 
     var art = document.getElementById('heroArt');
-    if (art) art.addEventListener('error', function () { art.parentNode.remove(); });
+    if (art) {
+      art.addEventListener('error', function () { art.parentNode.remove(); });
+      /* Смотрим, насколько светлый баннер именно под текстом, и включаем более
+         плотную подложку. Так любой новый арт не утопит заголовок. */
+      if (art.complete) measureArt(art);
+      else art.addEventListener('load', function () { measureArt(art); });
+    }
 
     sectionEls = Array.prototype.slice.call(root.querySelectorAll('.sec'));
     sheetList.innerHTML = tocHTML(doc, meta).replace(/^<nav[^>]*>|<\/nav>$/g, '');
     wireToc(sheetList);
     wireToc(root.querySelector('.toc'));
     onScroll();
+  }
+
+  /* Яркость баннера именно в той части, где стоит текст: учитываем object-fit:cover
+     и object-position, иначе замер смотрит не туда. Берём не среднее, а «худшие» светлые
+     пятна (95-й процентиль) — именно они и съедают буквы. */
+  function measureArt(img) {
+    var hero = img.closest('.hero');
+    if (!hero) return;
+    try {
+      var box = hero.getBoundingClientRect();
+      var nw = img.naturalWidth, nh = img.naturalHeight;
+      if (!nw || !nh || !box.width || !box.height) return;
+      var scale = Math.max(box.width / nw, box.height / nh);
+      var dw = nw * scale, dh = nh * scale;
+      var ox = (box.width - dw) * 0.5;        /* center */
+      var oy = (box.height - dh) * 0.34;      /* 34% */
+      /* зона текста в координатах шапки: слева и снизу */
+      var zx0 = Math.max(0, (0 - ox) / scale), zx1 = Math.min(nw, (box.width * 0.62 - ox) / scale);
+      var zy0 = Math.max(0, (box.height * 0.40 - oy) / scale), zy1 = Math.min(nh, (box.height - oy) / scale);
+      if (zx1 <= zx0 || zy1 <= zy0) { hero.setAttribute('data-contrast', 'mid'); return; }
+
+      var W = 200, H = 200;
+      var cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      var cx = cv.getContext('2d', { willReadFrequently: true });
+      cx.drawImage(img, 0, 0, nw, nh, 0, 0, W, H);
+
+      var x0 = Math.floor(zx0 / nw * W), x1 = Math.ceil(zx1 / nw * W);
+      var y0 = Math.floor(zy0 / nh * H), y1 = Math.ceil(zy1 / nh * H);
+      var w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
+      var data = cx.getImageData(x0, y0, w, h).data;
+      var lums = [];
+      for (var i = 0; i < data.length; i += 4) {
+        lums.push((0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255);
+      }
+      lums.sort(function (a, b) { return a - b; });
+      var p95 = lums[Math.min(lums.length - 1, Math.floor(lums.length * 0.95))] || 0;
+      hero.setAttribute('data-contrast', p95 > 0.52 ? 'high' : (p95 > 0.30 ? 'mid' : 'low'));
+      hero.setAttribute('data-contrast-p95', p95.toFixed(2));
+    } catch (e) {
+      hero.setAttribute('data-contrast', 'mid');
+    }
   }
 
   function wireToc(scope) {

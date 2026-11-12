@@ -1193,23 +1193,46 @@
       + '</div></div></div>';
   }
 
-  function heroBlock(m) {
-    var rows = Array.isArray(m.hero) ? m.hero : [];
-    var html = '<p class="micro" style="margin:20px 0 8px">Строки под названием</p>';
-    if (!rows.length) {
-      html += '<p class="field__hint">Сейчас стандартные: сезон, формат, косты, редакция. '
-        + 'Можно задать свои — добавьте строку.</p>';
+  /* строки шапки: если своих нет — показываем стандартные как обычные, чтобы их
+     можно было переименовать, убрать и переставить */
+  function heroRows(m) {
+    if (Array.isArray(m.hero) && m.hero.length) {
+      return m.hero.map(function (r) { return { k: (r && r.k) || '', v: (r && r.v) || '' }; });
     }
+    return defaultHero(m);
+  }
+
+  function setHero(m, rows) {
+    var clean = rows.map(function (r) { return { k: r.k || '', v: r.v || '' }; });
+    if (clean.length) m.hero = clean; else delete m.hero;
+  }
+
+  function heroBlock(m) {
+    var rows = heroRows(m);
+    var own = Array.isArray(m.hero) && m.hero.length;
+    var html = '<p class="micro" style="margin:20px 0 8px">Строки под названием</p>'
+      + '<p class="field__hint" style="margin:0 0 10px">'
+      + (own ? 'Свои строки.' : 'Пока стандартные — правьте их прямо здесь: переименовать, убрать, переставить.')
+      + ' На странице видно до шести строк; пустое значение скрывает строку.</p>';
     rows.forEach(function (r, i) {
       html += '<div class="pair">'
         + '<input class="field__input pair__k" data-hero="' + i + '.k" value="' + R.esc(r.k || '') + '" placeholder="Подпись">'
         + '<input class="field__input pair__v" data-hero="' + i + '.v" value="' + R.esc(r.v || '') + '" placeholder="Значение">'
-        + '<button class="btn btn--sm btn--ghost pair__x" type="button" data-cmd="hero-del" data-i="' + i + '" aria-label="Убрать строку">✕</button>'
-        + '</div>';
+        + '<div class="pair__acts">'
+        + '<button class="btn btn--sm btn--ghost pair__x" type="button" data-cmd="hero-up" data-i="' + i
+        + '" aria-label="Выше"' + (i === 0 ? ' disabled' : '') + '>↑</button>'
+        + '<button class="btn btn--sm btn--ghost pair__x" type="button" data-cmd="hero-down" data-i="' + i
+        + '" aria-label="Ниже"' + (i === rows.length - 1 ? ' disabled' : '') + '>↓</button>'
+        + '<button class="btn btn--sm btn--ghost pair__x" type="button" data-cmd="hero-del" data-i="' + i
+        + '" aria-label="Убрать строку">✕</button>'
+        + '</div></div>';
     });
+    if (!rows.length) {
+      html += '<p class="field__hint">Строк нет — под названием ничего не выводится.</p>';
+    }
     html += '<div class="sheet__actions" style="margin:10px 0 0">'
       + '<button class="btn btn--sm" type="button" data-cmd="hero-add">＋ Строка</button>'
-      + (rows.length ? '<button class="btn btn--sm btn--ghost" type="button" data-cmd="hero-reset">Сбросить к стандартным</button>' : '')
+      + (own ? '<button class="btn btn--sm btn--ghost" type="button" data-cmd="hero-reset">Сбросить к стандартным</button>' : '')
       + '</div>';
     return html;
   }
@@ -1277,12 +1300,26 @@
       if (cmd === 'hero-add') {
         snap();
         S.doc.meta = S.doc.meta || {};
-        S.doc.meta.hero = (Array.isArray(S.doc.meta.hero) && S.doc.meta.hero.length
-          ? S.doc.meta.hero
-          : defaultHero(S.doc.meta)).concat([{ k: '', v: '' }]);
+        setHero(S.doc.meta, heroRows(S.doc.meta).concat([{ k: '', v: '' }]));
         touch();
         renderAll();
         openMeta();
+        return;
+      }
+      if (cmd === 'hero-up' || cmd === 'hero-down') {
+        var ri = +(btn && btn.getAttribute('data-i'));
+        var rowsNow = heroRows(S.doc.meta || {});
+        var j = cmd === 'hero-up' ? ri - 1 : ri + 1;
+        if (j >= 0 && j < rowsNow.length) {
+          snap();
+          var tmp = rowsNow[ri];
+          rowsNow[ri] = rowsNow[j];
+          rowsNow[j] = tmp;
+          setHero(S.doc.meta, rowsNow);
+          touch();
+          renderAll();
+          openMeta();
+        }
         return;
       }
       if (cmd === 'hero-reset') {
@@ -1294,10 +1331,11 @@
         return;
       }
       if (cmd === 'hero-del') {
-        var i = +(btn && btn.getAttribute('data-i'));
+        var di = +(btn && btn.getAttribute('data-i'));
         snap();
-        (S.doc.meta.hero || []).splice(i, 1);
-        if (!S.doc.meta.hero.length) delete S.doc.meta.hero;
+        var left = heroRows(S.doc.meta || {});
+        left.splice(di, 1);
+        setHero(S.doc.meta, left);
         touch();
         renderAll();
         openMeta();
@@ -1339,9 +1377,12 @@
       input.addEventListener('input', function () {
         if (!metaSnapped) { snap(); metaSnapped = true; }
         var parts = input.getAttribute('data-hero').split('.');
-        var hero = S.doc.meta.hero || (S.doc.meta.hero = []);
-        var row = hero[+parts[0]] || (hero[+parts[0]] = { k: '', v: '' });
-        row[parts[1]] = input.value;
+        S.doc.meta = S.doc.meta || {};
+        var rows = heroRows(S.doc.meta);
+        var idx = +parts[0];
+        rows[idx] = rows[idx] || { k: '', v: '' };
+        rows[idx][parts[1]] = input.value;
+        setHero(S.doc.meta, rows);
         touch();
       });
     });
