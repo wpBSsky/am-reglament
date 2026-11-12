@@ -146,14 +146,6 @@
           ]
         },
         {
-          "type": "img",
-          "src": "assets/uploads/20261112-chatgpt-image-24-sent-2026-g-21-00-41.png",
-          "caption": "",
-          "size": "full",
-          "w": 1984,
-          "h": 793
-        },
-        {
           "type": "note",
           "tone": "ban",
           "label": "Запрет повтора",
