@@ -111,6 +111,22 @@ body::after{
 .bar__btn:hover,.bar__btn:focus-visible{color:var(--fg-hi)}
 .bar__btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.4}
 .bar__prog{position:absolute;left:0;bottom:-1px;height:1px;width:var(--p,0%);background:var(--red-hi)}
+/* Мобильная шапка: на 360 px бренд занимал 330 px, и кнопки уезжали за край
+   (body overflow-x:hidden → их просто срезало). Сжимаем бренд и кнопки, чтобы
+   всё влезало без скролла; тап-таргеты не меньше 44 px. */
+@media (max-width:600px){
+  .bar{gap:8px;padding:0 14px}
+  .bar__brand{font-size:.7rem;letter-spacing:.08em;gap:0}
+  .bar__brand span{display:none}
+  .bar__acts{gap:0}
+  .bar__btn{padding:0 8px;min-height:44px}
+  #btnAdmin{min-width:44px;justify-content:center}
+}
+@media (max-width:360px){
+  .bar{padding:0 10px;gap:6px}
+  .bar__brand{font-size:.64rem;letter-spacing:.04em}
+  .bar__btn{padding:0 6px}
+}
 
 /* == 05 HERO ============================================================= */
 /* z-index выше зерна (body::after, z 3): фото под шумом читается как «мыло» */
