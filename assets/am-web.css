@@ -203,6 +203,20 @@ body::after{
   color:var(--fg-hi);letter-spacing:.02em;
 }
 
+/* Мобильный герой: баннер 2.5:1 в узком окне обрезался до ~28% ширины —
+   логотип слева и персонаж справа срезались. На телефоне показываем баннер
+   полосой в его собственном соотношении (ничего не режем), текст — под ним. */
+@media (max-width:719px){
+  .hero{display:block;min-height:0;padding-top:var(--bar-h)}
+  .hero__art{position:relative;inset:auto;z-index:auto;aspect-ratio:1983/793}
+  .hero__art img{position:relative;object-position:50% 50%}
+  /* текст больше не лежит на баннере — тяжёлую заливку и приглушение убираем,
+     оставляем только мягкий переход в фон внизу полосы */
+  .hero[data-contrast] .hero__art::after{background:linear-gradient(to bottom, rgba(6,6,8,0) 70%, var(--ink) 100%)}
+  .hero[data-contrast] .hero__art img{filter:none}
+  .hero__inner{padding-top:26px}
+}
+
 /* == 06 LAYOUT =========================================================== */
 .doc{
   position:relative;z-index:1;
